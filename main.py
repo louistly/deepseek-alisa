@@ -41,7 +41,7 @@ async def main(request: Request):
                     "X-Title": "Alice Skill"
                 },
                 json={
-                    "model": "arcee-ai/trinity-mini:free", # Очень быстрая бесплатная модель
+                    "model": "baidu/ernie-5.5-flash-preview:free", # Очень быстрая бесплатная модель
                     "messages": [{"role": "user", "content": user_text}],
                     "max_tokens": 150 # Ограничиваем длину ответа, чтобы успеть за 4.5 секунды
                 }
