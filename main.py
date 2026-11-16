@@ -2,19 +2,20 @@ import os
 from fastapi import FastAPI, Request
 import requests
 
-if 'DEEPSEEK_API_KEY' not in os.environ:
-    raise ValueError('DEEPSEEK_API_KEY not set in environment')
+# Меняем название переменной на OPENROUTER_API_KEY
+if 'OPENROUTER_API_KEY' not in os.environ:
+    raise ValueError('OPENROUTER_API_KEY not set in environment')
 
 app = FastAPI()
 
-DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions"
-DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
+# 1. Меняем URL на OpenRouter
+OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 
 @app.post("/")
 async def main(request: Request):
     body = await request.json()
     
-    # Иногда Алиса присылает пустой запрос при первом запуске навыка
     user_text = body.get("request", {}).get("original_utterance", "")
     if not user_text:
         return {
@@ -26,38 +27,39 @@ async def main(request: Request):
             }
         }
 
-    # Делаем запрос к DeepSeek
+    # 2. Делаем запрос к OpenRouter
     response = requests.post(
-        DEEPSEEK_API_URL,
-        headers={"Authorization": f"Bearer {DEEPSEEK_API_KEY}"},
+        OPENROUTER_API_URL,
+        headers={
+            "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+            "HTTP-Referer": "https://dialogs.yandex.ru", # Обязательно для OpenRouter
+            "X-Title": "Alice Skill"                     # Обязательно для OpenRouter
+        },
         json={
-            "model": "deepseek-chat",
+            "model": "meta-llama/llama-3-8b-instruct:free", # Бесплатная модель (можно сменить на другую с :free)
             "messages": [{"role": "user", "content": user_text}],
         }
     )
 
-    # === НАЧАЛО БЛОКА ОБРАБОТКИ ОШИБОК ===
+    # === БЛОК ОБРАБОТКИ ОШИБОК ===
     if response.status_code != 200:
-        # Если ключ неверный или закончились деньги, мы увидим это в логах Render
-        print(f"ОШИБКА DeepSeek: Статус {response.status_code}. Ответ: {response.text}")
-        answer = "Извините, произошла ошибка при обращении к DeepSeek. Проверьте логи на сервере."
+        print(f"ОШИБКА OpenRouter: Статус {response.status_code}. Ответ: {response.text}")
+        answer = "Извините, произошла ошибка при обращении к нейросети."
     else:
         try:
             data_json = response.json()
             
-            # Проверяем, не вернул ли DeepSeek ошибку внутри тела ответа
             if "error" in data_json:
                 error_msg = data_json["error"].get("message", "Неизвестная ошибка")
-                print(f"API DeepSeek вернул ошибку: {error_msg}")
-                answer = f"Ошибка DeepSeek: {error_msg}"
+                print(f"API OpenRouter вернул ошибку: {error_msg}")
+                answer = f"Ошибка OpenRouter: {error_msg}"
             else:
-                # Безопасно достаем текст ответа
                 answer = data_json.get("choices", [{}])[0].get("message", {}).get("content", "")
                 if not answer:
-                    print(f"DeepSeek вернул пустой ответ: {data_json}")
-                    answer = "DeepSeek не смог сгенерировать ответ."
+                    print(f"Нейросеть вернула пустой ответ: {data_json}")
+                    answer = "Нейросеть не смогла сгенерировать ответ."
         except Exception as e:
-            print(f"Ошибка при чтении ответа от DeepSeek: {e}")
+            print(f"Ошибка при чтении ответа: {e}")
             answer = "Произошла внутренняя ошибка при обработке ответа."
     # === КОНЕЦ БЛОКА ОБРАБОТКИ ОШИБОК ===
 
