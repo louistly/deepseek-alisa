@@ -36,7 +36,7 @@ async def main(request: Request):
             "X-Title": "Alice Skill"                     # Обязательно для OpenRouter
         },
         json={
-            "model": "meta-llama/llama-3-8b-instruct:free", # Бесплатная модель (можно сменить на другую с :free)
+            "model": "meta-llama/llama-3.1-8b-instruct:free", # Бесплатная модель (можно сменить на другую с :free)
             "messages": [{"role": "user", "content": user_text}],
         }
     )
