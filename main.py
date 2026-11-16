@@ -1,4 +1,8 @@
 import os
+if 'DEEPSEEK_API_KEY' not in os.environ:
+    raise ValueError('DEEPSEEK_API_KEY not set in environment')
+
+import os
 from fastapi import FastAPI, Request
 import requests
 
