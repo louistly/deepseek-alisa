@@ -1,6 +1,7 @@
 import os
 from fastapi import FastAPI, Request
-import requests
+import httpx
+import asyncio
 
 # Меняем название переменной на OPENROUTER_API_KEY
 if 'OPENROUTER_API_KEY' not in os.environ:
@@ -27,19 +28,43 @@ async def main(request: Request):
             }
         }
 
-    # 2. Делаем запрос к OpenRouter
-    response = requests.post(
-        OPENROUTER_API_URL,
-        headers={
-            "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-            "HTTP-Referer": "https://dialogs.yandex.ru", # Обязательно для OpenRouter
-            "X-Title": "Alice Skill"                     # Обязательно для OpenRouter
-        },
-        json={
-            "model": "openrouter/free", # Любая доступная во время обращения бесплатная модель (можно сменить на другую с :free)
-            "messages": [{"role": "user", "content": user_text}],
+       # Устанавливаем таймаут в 3.5 секунды, чтобы успеть до лимита Алисы (4.5 сек)
+    timeout_settings = httpx.Timeout(3.5, connect=2.0)
+
+    try:
+        async with httpx.AsyncClient(timeout=timeout_settings) as client:
+            response = await client.post(
+                OPENROUTER_API_URL,
+                headers={
+                    "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                    "HTTP-Referer": "https://dialogs.yandex.ru",
+                    "X-Title": "Alice Skill"
+                },
+                json={
+                    "model": "openrouter/free", # или ваша выбранная модель
+                    "messages": [{"role": "user", "content": user_text}],
+                }
+            )
+    except httpx.TimeoutException:
+        print("ОШИБКА: OpenRouter не ответил за 3.5 секунды.")
+        return {
+            "version": body["version"],
+            "session": body["session"],
+            "response": {
+                "end_session": False,
+                "text": "Нейросеть задумалась слишком надолго. Попробуйте переформулировать вопрос или спросить что-то покороче."
+            }
         }
-    )
+    except Exception as e:
+        print(f"ОШИБКА сети: {e}")
+        return {
+            "version": body["version"],
+            "session": body["session"],
+            "response": {
+                "end_session": False,
+                "text": "Произошла сетевая ошибка при обращении к нейросети."
+            }
+        }
 
     # === БЛОК ОБРАБОТКИ ОШИБОК ===
     if response.status_code != 200:
